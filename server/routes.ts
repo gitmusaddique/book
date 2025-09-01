@@ -6,7 +6,10 @@ import multer, { type FileFilterCallback } from "multer";
 import path from "path";
 import fs from "fs";
 import { marked } from "marked";
-import PDFDocument from 'pdfkit';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 interface MulterRequest extends Request {
   file?: any;
@@ -161,10 +164,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const htmlContent = await generateBookHTML(project, options);
 
       if (format === "pdf") {
-        // Generate PDF using PDFKit (no browser dependencies)
+        // Generate PDF using Pandoc (professional and simple)
         try {
-          console.log('Generating PDF with PDFKit...');
-          const pdfBuffer = await generatePDFWithPDFKit(project, options);
+          console.log('Generating PDF with Pandoc...');
+          const pdfBuffer = await generatePDFWithPandoc(project, options);
           console.log('PDF generated successfully, buffer size:', pdfBuffer.length);
           
           res.setHeader('Content-Type', 'application/pdf');
@@ -301,122 +304,96 @@ function getThemeStyles(): string {
   `;
 }
 
-async function generatePDFWithPDFKit(project: any, options: any): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({ 
-        margin: 72, // 1 inch margins
-        size: 'A4'
-      });
-      const buffers: Buffer[] = [];
-      
-      doc.on('data', buffers.push.bind(buffers));
-      doc.on('end', () => {
-        const pdfData = Buffer.concat(buffers);
-        resolve(pdfData);
-      });
-
-      const { content, coverConfig } = project;
-
-      // Add cover page if requested
-      if (options.includeCover) {
-        doc.fontSize(28).font('Helvetica-Bold').text(coverConfig?.title || project.title, { 
-          align: 'center',
-          valign: 'center'
-        });
-        if (coverConfig?.subtitle) {
-          doc.moveDown(2).fontSize(20).font('Helvetica').text(coverConfig.subtitle, { align: 'center' });
-        }
-        if (coverConfig?.author) {
-          doc.moveDown(4).fontSize(16).font('Helvetica').text(`by ${coverConfig.author}`, { align: 'center' });
-        }
-        doc.addPage();
-      }
-
-      // Add table of contents if requested
-      if (options.includeTOC) {
-        doc.fontSize(24).font('Helvetica-Bold').text('Table of Contents', { align: 'center' });
-        doc.moveDown(2);
-        
-        const tocItems = generateTableOfContents(content);
-        tocItems.forEach(item => {
-          const indent = (item.level - 1) * 20;
-          doc.fontSize(12).font('Helvetica').text(item.title, { 
-            indent: indent,
-            continued: false 
-          });
-          doc.moveDown(0.3);
-        });
-        doc.addPage();
-      }
-
-      // Parse markdown content and add to PDF
-      const lines = content.split('\n');
-      let afterHeading = false;
-      
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        
-        if (line === '') {
-          doc.moveDown(0.5);
-          continue;
-        }
-
-        // Handle headings
-        if (line.startsWith('# ')) {
-          if (i > 0) doc.addPage(); // New page for each chapter
-          doc.fontSize(24).font('Helvetica-Bold').text(line.substring(2), { align: 'center' });
-          doc.moveDown(2);
-          afterHeading = true;
-        } else if (line.startsWith('## ')) {
-          doc.moveDown(1).fontSize(18).font('Helvetica-Bold').text(line.substring(3), { align: 'left' });
-          doc.moveDown(1);
-          afterHeading = true;
-        } else if (line.startsWith('### ')) {
-          doc.moveDown(1).fontSize(16).font('Helvetica-Bold').text(line.substring(4), { align: 'left' });
-          doc.moveDown(0.5);
-          afterHeading = true;
-        } else if (line.startsWith('#### ')) {
-          doc.moveDown(1).fontSize(14).font('Helvetica-Bold').text(line.substring(5), { align: 'left' });
-          doc.moveDown(0.5);
-          afterHeading = true;
-        } else if (line.startsWith('- ') || line.startsWith('* ')) {
-          // Handle bullet points
-          doc.fontSize(12).font('Helvetica').text(`• ${line.substring(2)}`, { indent: 20 });
-          doc.moveDown(0.3);
+async function generatePDFWithPandoc(project: any, options: any): Promise<Buffer> {
+  const { content, coverConfig } = project;
+  
+  // Create markdown content with metadata
+  let markdownContent = '';
+  
+  // Add YAML frontmatter for metadata
+  markdownContent += '---\n';
+  markdownContent += `title: "${coverConfig?.title || project.title}"\n`;
+  if (coverConfig?.author) {
+    markdownContent += `author: "${coverConfig.author}"\n`;
+  }
+  if (coverConfig?.subtitle) {
+    markdownContent += `subtitle: "${coverConfig.subtitle}"\n`;
+  }
+  markdownContent += 'documentclass: book\n';
+  markdownContent += 'geometry: margin=1in\n';
+  markdownContent += 'fontsize: 12pt\n';
+  markdownContent += 'linestretch: 1.2\n';
+  markdownContent += 'header-includes: |\n';
+  markdownContent += '  \\usepackage{lettrine}\n';
+  markdownContent += '  \\usepackage{microtype}\n';
+  markdownContent += '  \\usepackage{tgtermes}\n';
+  if (options.includeTOC) {
+    markdownContent += 'toc: true\n';
+    markdownContent += 'toc-depth: 3\n';
+  }
+  markdownContent += '---\n\n';
+  
+  // Process content to add drop caps after headings
+  const lines = content.split('\n');
+  let afterHeading = false;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    
+    if (line.startsWith('# ')) {
+      if (i > 0) markdownContent += '\n\\newpage\n\n';
+      markdownContent += `${line}\n\n`;
+      afterHeading = true;
+    } else if (line.startsWith('#')) {
+      markdownContent += `${line}\n\n`;
+      afterHeading = true;
+    } else if (line === '') {
+      markdownContent += '\n';
+    } else {
+      // Add drop cap for first paragraph after heading
+      if (afterHeading && line.length > 0 && !line.startsWith('-') && !line.startsWith('*')) {
+        const firstChar = line.charAt(0);
+        const restOfText = line.substring(1);
+        markdownContent += `\\lettrine{${firstChar}}{${restOfText.substring(0, 2)}}${restOfText.substring(2)}\n\n`;
+        afterHeading = false;
+      } else {
+        markdownContent += `${line}\n\n`;
+        if (!line.startsWith('-') && !line.startsWith('*')) {
           afterHeading = false;
-        } else {
-          // Regular paragraph text with drop cap after headings
-          if (afterHeading && line.length > 0) {
-            // Add drop cap for first paragraph after heading
-            const firstChar = line.charAt(0);
-            const restOfText = line.substring(1);
-            
-            // Draw the drop cap
-            doc.fontSize(48).font('Helvetica-Bold').text(firstChar, 72, doc.y, {
-              width: 36,
-              align: 'center'
-            });
-            
-            // Draw the rest of the paragraph with text wrapping around drop cap
-            doc.fontSize(12).font('Helvetica').text(restOfText, 108, doc.y - 36, {
-              width: doc.page.width - 180,
-              align: 'justify'
-            });
-            
-            doc.moveDown(1);
-            afterHeading = false;
-          } else {
-            // Regular paragraph
-            doc.fontSize(12).font('Helvetica').text(line, { align: 'justify' });
-            doc.moveDown(0.5);
-          }
         }
       }
-
-      doc.end();
-    } catch (error) {
-      reject(error);
     }
-  });
+  }
+  
+  // Write markdown to temporary file
+  const tempDir = '/tmp';
+  const markdownFile = path.join(tempDir, `book-${Date.now()}.md`);
+  const pdfFile = path.join(tempDir, `book-${Date.now()}.pdf`);
+  
+  try {
+    fs.writeFileSync(markdownFile, markdownContent);
+    
+    // Convert markdown to PDF using pandoc
+    const pandocCmd = `pandoc "${markdownFile}" -o "${pdfFile}" --pdf-engine=xelatex --variable=fontfamily:libertinus`;
+    
+    await execAsync(pandocCmd);
+    
+    // Read the generated PDF
+    const pdfBuffer = fs.readFileSync(pdfFile);
+    
+    // Clean up temporary files
+    fs.unlinkSync(markdownFile);
+    fs.unlinkSync(pdfFile);
+    
+    return pdfBuffer;
+  } catch (error) {
+    // Clean up files if they exist
+    try {
+      if (fs.existsSync(markdownFile)) fs.unlinkSync(markdownFile);
+      if (fs.existsSync(pdfFile)) fs.unlinkSync(pdfFile);
+    } catch (cleanupError) {
+      // Ignore cleanup errors
+    }
+    throw error;
+  }
 }
