@@ -1,0 +1,233 @@
+\usepackage{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{textcomp} % For degree symbol and other text symbols
+\usepackage{xcolor}
+\usepackage{etoolbox}
+\usepackage{pagecolor}
+\definecolor{antiquepaper}{RGB}{250,248,240}
+%\pagecolor{antiquepaper}
+\pagecolor{white}
+% Only two colors: black and green
+\definecolor{darkgreen}{RGB}{0,80,0}
+\definecolor{black}{RGB}{0,0,0}
+\definecolor{shadecolor}{rgb}{0.97,0.97,0.97}
+\usepackage{graphicx}
+\usepackage{wallpaper}
+\usepackage{wrapfig,booktabs}
+\usepackage{caption}
+\captionsetup{skip=10pt}
+\usepackage{fancyhdr}
+\usepackage{lettrine}
+\input Acorn.fd
+\newcommand*\initfamily{\usefont{U}{Acorn}{xl}{n}}
+
+%======================================================================
+%   SECTION NUMBERING CONTROL - HIDE NUMBERS IN DOCUMENT TITLES
+%======================================================================
+% Keep section numbering for TOC but hide from section titles in document
+\setcounter{secnumdepth}{3} % Number sections internally
+\setcounter{tocdepth}{3}    % Show sections in TOC
+
+% Ensure section counter starts from 1 (this is default but made explicit)
+\setcounter{section}{0}
+
+% Section numbers will appear in TOC but not above section titles in document
+% This is controlled by the \titleformat command below
+
+% Optional: If you want to manually reset section numbering at any point:
+% \newcommand{\resetsectioncounter}{\setcounter{section}{0}}
+%======================================================================
+
+%======================================================================
+%   TABLE OF CONTENTS STYLING
+%======================================================================
+\usepackage{tocloft}
+\usepackage{titletoc}
+
+% Style the "Table Of Contents" title - properly centered
+\renewcommand{\cfttoctitlefont}{\centering\Huge\bfseries\color{darkgreen}}
+\renewcommand{\cftaftertoctitle}{}
+\setlength{\cftbeforetoctitleskip}{2cm}
+\setlength{\cftaftertoctitleskip}{2cm}
+
+% Override default contents name
+\renewcommand{\contentsname}{Table Of Contents}
+
+% Override the previous suppression
+\makeatletter
+\renewcommand\tableofcontents{%
+    \if@twocolumn
+      \@restonecoltrue\onecolumn
+    \else
+      \@restonecolfalse
+    \fi
+    \chapter*{\contentsname
+        \@mkboth{%
+           \MakeUppercase\contentsname}{\MakeUppercase\contentsname}}%
+    \@starttoc{toc}%
+    \if@restonecol\twocolumn\fi
+    }
+
+% Customize section entries in TOC - ensure numbering is visible
+\renewcommand{\cftsecfont}{\color{darkgreen}\bfseries}
+\renewcommand{\cftsecpagefont}{\color{darkgreen}\bfseries}
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+\setlength{\cftsecindent}{0em}
+\setlength{\cftsecnumwidth}{2em} % Adequate space for section numbers
+
+% Customize subsection entries in TOC
+\renewcommand{\cftsubsecfont}{\color{black}}
+\renewcommand{\cftsubsecpagefont}{\color{black}}
+\setlength{\cftsubsecindent}{2em}
+\setlength{\cftsubsecnumwidth}{2.5em}
+
+% Add ornamental decoration before TOC
+\newcommand{\tocornament}{\par\vspace{1em}\noindent\begin{minipage}{\textwidth}\noindent\textcolor{darkgreen}{\hrulefill~ \raisebox{-2.5pt}[10pt][10pt]{\leafright \decofourleft \decothreeleft  \aldineright \decotwo \floweroneleft \decoone   \floweroneright \decotwo \aldineleft\decothreeright \decofourright \leafleft} ~  \hrulefill}\end{minipage}\par\vspace{1em}}
+
+% Simple TOC command without ornaments
+\newcommand{\customtoc}{%
+  \pagenumbering{gobble} % Disable page numbering completely
+  \newpage
+  \thispagestyle{empty}
+  \tableofcontents
+  \newpage
+}
+%======================================================================
+
+%======================================================================
+%   DROP CAP COMMAND (Bulletproof Version)
+%======================================================================
+% This version uses \lettrine for the big letter ONLY (note the empty {}),
+% and then manually prints the rest of the word (#2) as normal text.
+% This bypasses all small caps formatting.
+\newcommand{\dropcap}[1]{\lettrine[lines=3]{\initfamily\color{darkgreen}{#1}}{}}
+%======================================================================
+
+\usepackage{geometry}
+\geometry{
+tmargin=3cm, 
+bmargin=3cm, 
+lmargin=3cm, 
+rmargin=3cm,
+headheight=1.5cm,
+headsep=0.8cm,
+footskip=0.5cm}
+
+\renewcommand{\familydefault}{pplj} 
+\setlength{\parskip}{1.3ex plus 0.2ex minus 0.2ex}
+\usepackage{fourier-orns}
+
+\newcommand{\ornamento}{\par\vspace{2em}\noindent\begin{minipage}{\textwidth}\noindent\textcolor{darkgreen}{\hrulefill~ \raisebox{-2.5pt}[10pt][10pt]{\leafright \decofourleft \decothreeleft  \aldineright \decotwo \floweroneleft \decoone   \floweroneright \decotwo \aldineleft\decothreeright \decofourright \leafleft} ~  \hrulefill}\end{minipage}\par\vspace{2em}}
+
+\newcommand{\ornpar}{\noindent \textcolor{darkgreen}{ \raisebox{-1.9pt}[10pt][10pt]{\leafright} \hrulefill \raisebox{-1.9pt}[10pt][10pt]{\leafright \decofourleft \decothreeleft  \aldineright \decotwo \floweroneleft \decoone}}}
+\newcommand{\ornimpar}{\textcolor{darkgreen}{\raisebox{-1.9pt}[10pt][10pt]{\decoone \floweroneright \decotwo \aldineleft \decothreeright \decofourright \leafleft} \hrulefill \raisebox{-1.9pt}[10pt][10pt]{\leafleft}}}
+
+\makeatletter
+\def\headrule{{\color{darkgreen}\raisebox{-2.1pt}[10pt][10pt]{\leafright} \hrulefill \raisebox{-2.1pt}[10pt][10pt]{~~~\decofourleft \decotwo\decofourright~~~} \hrulefill \raisebox{-2.1pt}[10pt][10pt]{ \leafleft}}}
+\makeatother
+
+\fancyhf{}
+\usepackage{titlesec}
+\titleformat{\section}[display]
+{\normalfont\Large\bfseries\centering}
+{}{0pt}{\Large}
+\titlespacing*{\section}{0pt}{50pt}{40pt}
+
+\newcommand{\sectionbreak}{\clearpage}
+\renewcommand{\sectionmark}[1]{\markboth{#1}{#1}}
+\newcommand{\estcab}[1]{\itshape\textcolor{black}{\nouppercase #1}}
+\fancyhead[R]{\estcab{\leftmark}}
+\fancyhead[L]{}
+\fancyhead[C]{}
+
+%======================================================================
+%   ALTERNATING FOOTER ORNAMENTS FOR ODD/EVEN PAGES
+%======================================================================
+% Define ornaments for odd pages (original direction)
+\newcommand{\ornodd}{\noindent \textcolor{darkgreen}{ \raisebox{-1.9pt}[10pt][10pt]{\leafright} \hrulefill \raisebox{-1.9pt}[10pt][10pt]{\leafright \decofourleft \decothreeleft  \aldineright \decotwo \floweroneleft \decoone}}}
+
+% Define ornaments for even pages (reversed direction)
+\newcommand{\orneven}{\textcolor{darkgreen}{\raisebox{-1.9pt}[10pt][10pt]{\decoone \floweroneright \decotwo \aldineleft \decothreeright \decofourright \leafleft} \hrulefill \raisebox{-1.9pt}[10pt][10pt]{\leafleft}}}
+
+% Set up alternating footers
+\fancyfoot[C]{%
+  \ifodd\value{page}%
+    \ornodd \\ \large \sffamily\bf \textcolor{darkgreen}{\leafNE ~~~ \thepage ~~~ \reflectbox{\leafNE}}%
+  \else%
+    \orneven \\ \large \sffamily\bf \textcolor{darkgreen}{\reflectbox{\leafNE} ~~~ \thepage ~~~ \leafNE}%
+  \fi%
+}
+%======================================================================
+
+%======================================================================
+%   UNIFIED WRAPPING COMMANDS (ALWAYS WRAP RIGHT) - FIXED VERSION
+%======================================================================
+
+% Wraps an image on the right side of the page.
+% Usage: \WrapFig[width]{image_filename}{caption}
+\newcommand{\WrapFig}[3][0.28\textwidth]{%
+  \setlength{\columnsep}{12pt}
+  \setlength{\intextsep}{8pt}
+  \begin{wrapfigure}{R}{#1}
+    \centering
+    \includegraphics[width=\linewidth]{#2}
+    \caption{#3}
+  \end{wrapfigure}
+}
+
+% Wraps a table on the right side of the page - OPTIMIZED FOR SMALLER WIDTHS
+% Usage: \WrapTable[width]{caption}{column format}{table content}
+\newcommand{\WrapTable}[4][8cm]{%
+  \setlength{\columnsep}{15pt}
+  \setlength{\intextsep}{12pt}
+  \begin{wraptable}{R}{#1}
+    \centering
+    \scriptsize % Changed from \footnotesize to \scriptsize for better fit
+    \caption{#2}
+    \vspace{0.2cm}
+    \begin{tabular}{#3}
+      #4
+    \end{tabular}
+  \end{wraptable}
+}
+%======================================================================
+
+%======================================================================
+%   PAGE NUMBERING CONTROL SYSTEM
+%======================================================================
+% Boolean to track if we've started content
+\newif\ifcontentstarted
+\contentstartedfalse
+
+% Redefine section to start numbering on first section
+\let\oldsection\section
+\renewcommand{\section}[1]{%
+  \ifcontentstarted
+    % Do nothing, content already started
+  \else
+    % First section - start page numbering
+    \pagenumbering{arabic}%
+    \setcounter{page}{1}%
+    \pagestyle{fancy}%
+    \contentstartedtrue
+  \fi
+  \oldsection{#1}%
+}
+
+% Start document with no page numbering
+\AtBeginDocument{%
+  \pagenumbering{gobble}%
+  \pagestyle{empty}%
+}
+%======================================================================
+
+\usepackage{lipsum}
+\setlength{\parindent}{1em}
+\renewcommand{\footnoterule}{\vspace{-0.5em}\noindent\textcolor{darkgreen}{\decosix \raisebox{2.9pt}{\line(1,0){200}} \lefthand} \vspace{.5em} }
+\usepackage[hang,splitrule]{footmisc}
+\addtolength{\footskip}{0.5cm}
+\setlength{\footnotemargin}{0.3cm}
+\setlength{\footnotesep}{0.4cm} 
+\usepackage{chngcntr}
+\counterwithout{figure}{section}
+\counterwithout{table}{section}

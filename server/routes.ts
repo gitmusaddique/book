@@ -307,31 +307,25 @@ function getThemeStyles(): string {
 async function generatePDFWithPandoc(project: any, options: any): Promise<Buffer> {
   const { content, coverConfig } = project;
   
-  // Create markdown content with metadata
+  // Create clean markdown content
   let markdownContent = '';
   
-  // Add YAML frontmatter for metadata
-  markdownContent += '---\n';
-  markdownContent += `title: "${coverConfig?.title || project.title}"\n`;
-  if (coverConfig?.author) {
-    markdownContent += `author: "${coverConfig.author}"\n`;
+  // Add title page if cover is requested
+  if (options.includeCover) {
+    markdownContent += `# ${coverConfig?.title || project.title}\n\n`;
+    if (coverConfig?.subtitle) {
+      markdownContent += `## ${coverConfig.subtitle}\n\n`;
+    }
+    if (coverConfig?.author) {
+      markdownContent += `**${coverConfig.author}**\n\n`;
+    }
+    markdownContent += '\n\\newpage\n\n';
   }
-  if (coverConfig?.subtitle) {
-    markdownContent += `subtitle: "${coverConfig.subtitle}"\n`;
-  }
-  markdownContent += 'documentclass: book\n';
-  markdownContent += 'geometry: margin=1in\n';
-  markdownContent += 'fontsize: 12pt\n';
-  markdownContent += 'linestretch: 1.2\n';
-  markdownContent += 'header-includes: |\n';
-  markdownContent += '  \\usepackage{lettrine}\n';
-  markdownContent += '  \\usepackage{microtype}\n';
-  markdownContent += '  \\usepackage{tgtermes}\n';
+
+  // Add table of contents if requested
   if (options.includeTOC) {
-    markdownContent += 'toc: true\n';
-    markdownContent += 'toc-depth: 3\n';
+    markdownContent += '\\customtoc\n\n';
   }
-  markdownContent += '---\n\n';
   
   // Process content to add drop caps after headings
   const lines = content.split('\n');
@@ -354,7 +348,7 @@ async function generatePDFWithPandoc(project: any, options: any): Promise<Buffer
       if (afterHeading && line.length > 0 && !line.startsWith('-') && !line.startsWith('*')) {
         const firstChar = line.charAt(0);
         const restOfText = line.substring(1);
-        markdownContent += `\\lettrine{${firstChar}}{${restOfText.substring(0, 2)}}${restOfText.substring(2)}\n\n`;
+        markdownContent += `\\dropcap{${firstChar}}${line.substring(1)}\n\n`;
         afterHeading = false;
       } else {
         markdownContent += `${line}\n\n`;
@@ -369,12 +363,13 @@ async function generatePDFWithPandoc(project: any, options: any): Promise<Buffer
   const tempDir = '/tmp';
   const markdownFile = path.join(tempDir, `book-${Date.now()}.md`);
   const pdfFile = path.join(tempDir, `book-${Date.now()}.pdf`);
+  const headerFile = path.join(process.cwd(), 'server', 'latex-header.tex');
   
   try {
     fs.writeFileSync(markdownFile, markdownContent);
     
-    // Convert markdown to PDF using pandoc
-    const pandocCmd = `pandoc "${markdownFile}" -o "${pdfFile}" --pdf-engine=xelatex --variable=fontfamily:libertinus`;
+    // Convert markdown to PDF using pandoc with your LaTeX header
+    const pandocCmd = `pandoc "${markdownFile}" -H "${headerFile}" -o "${pdfFile}" --pdf-engine=pdflatex`;
     
     await execAsync(pandocCmd);
     

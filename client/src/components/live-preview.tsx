@@ -25,7 +25,7 @@ export default function LivePreview({
   const [previewMode, setPreviewMode] = useState<PreviewMode>('content');
   const [zoom, setZoom] = useState(100);
 
-  const htmlContent = useMemo(() => parseMarkdownToHTML(content), [content]);
+  // Keep content as raw markdown for preview
   const tableOfContents = useMemo(() => generateTableOfContents(content), [content]);
 
   const handleZoomIn = () => setZoom(prev => Math.min(200, prev + 10));
@@ -150,11 +150,10 @@ export default function LivePreview({
               className={`bg-white border border-border rounded-lg p-8 ${themeClass} ${columnClass}`}
               data-testid="content-preview"
             >
-              {htmlContent ? (
-                <div 
-                  className="markdown-content"
-                  dangerouslySetInnerHTML={{ __html: htmlContent }}
-                />
+              {content ? (
+                <div className="font-mono text-sm whitespace-pre-wrap">
+                  {content}
+                </div>
               ) : (
                 <p className="text-muted-foreground text-center" data-testid="text-content-empty">
                   Start writing in the editor to see your content here.
