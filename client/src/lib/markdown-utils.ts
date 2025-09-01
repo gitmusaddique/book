@@ -2,7 +2,8 @@ import { marked } from "marked";
 
 export function parseMarkdownToHTML(markdown: string): string {
   try {
-    return marked(markdown);
+    const result = marked(markdown);
+    return typeof result === 'string' ? result : '';
   } catch (error) {
     console.error('Error parsing markdown:', error);
     return '';

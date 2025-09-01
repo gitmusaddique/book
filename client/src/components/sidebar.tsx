@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Upload, Plus, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import type { Image } from "@shared/schema";
 
 interface SidebarProps {
   bookState: any;
@@ -29,7 +30,7 @@ export default function Sidebar({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: images = [] } = useQuery({
+  const { data: images = [] } = useQuery<Image[]>({
     queryKey: ["/api/projects", projectId, "images"],
   });
 
@@ -254,7 +255,7 @@ export default function Sidebar({
               No images uploaded yet
             </p>
           ) : (
-            images.map((image: any) => (
+            images.map((image) => (
               <Card key={image.id} className="flex items-center p-2" data-testid={`image-item-${image.id}`}>
                 <img
                   src={image.url}

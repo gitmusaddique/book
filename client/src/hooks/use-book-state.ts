@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { exportBook, downloadBlob } from "@/lib/pdf-utils";
+import { exportBook, downloadBlob, type ExportOptions } from "@/lib/pdf-utils";
+import type { Project } from "@shared/schema";
 
 export function useBookState(projectId: string) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: project } = useQuery({
+  const { data: project } = useQuery<Project>({
     queryKey: ["/api/projects", projectId],
     enabled: !!projectId,
   });
@@ -38,7 +39,12 @@ export function useBookState(projectId: string) {
         theme: project.theme,
         columnLayout: project.columnLayout,
         coverConfig: project.coverConfig || {},
-        settings: project.settings || bookState.settings
+        settings: project.settings || {
+          autoWrapTables: true,
+          autoPositionImages: true,
+          includePageNumbers: true,
+          includeHeaders: false
+        }
       });
     }
   }, [project]);
@@ -59,9 +65,10 @@ export function useBookState(projectId: string) {
 
   // Export mutation
   const exportMutation = useMutation({
-    mutationFn: exportBook,
+    mutationFn: ({ projectId, options }: { projectId: string; options: ExportOptions }) => 
+      exportBook(projectId, options),
     onSuccess: (blob, variables) => {
-      const filename = `${bookState.title}.${variables[1].format}`;
+      const filename = `${bookState.title}.${variables.options.format}`;
       downloadBlob(blob, filename);
       toast({ title: "Book exported successfully" });
     },
@@ -99,8 +106,8 @@ export function useBookState(projectId: string) {
     saveProjectMutation.mutate(bookState);
   };
 
-  const exportBookFn = (options: any) => {
-    exportMutation.mutate([projectId, options]);
+  const exportBookFn = (options: ExportOptions) => {
+    exportMutation.mutate({ projectId, options });
   };
 
   return {
