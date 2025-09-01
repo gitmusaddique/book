@@ -6,7 +6,7 @@ import multer, { type FileFilterCallback } from "multer";
 import path from "path";
 import fs from "fs";
 import { marked } from "marked";
-import puppeteer from "puppeteer-core";
+import puppeteer from "puppeteer";
 
 interface MulterRequest extends Request {
   file?: any;
@@ -161,10 +161,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const htmlContent = await generateBookHTML(project, options);
 
       if (format === "pdf") {
-        // For now, return HTML with PDF styling due to Puppeteer limitations in this environment
-        res.setHeader('Content-Type', 'text/html');
-        res.setHeader('Content-Disposition', `attachment; filename="${project.title}.html"`);
-        res.send(htmlContent);
+        // Generate actual PDF using Puppeteer
+        const browser = await puppeteer.launch({
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+        });
+        
+        try {
+          const page = await browser.newPage();
+          await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+          
+          const pdfOptions: any = {
+            format: pageSize.toUpperCase(),
+            printBackground: true,
+            margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' }
+          };
+          
+          const pdfBuffer = await page.pdf(pdfOptions);
+          
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `attachment; filename="${project.title}.pdf"`);
+          res.send(pdfBuffer);
+        } finally {
+          await browser.close();
+        }
         return;
       }
       
