@@ -200,7 +200,7 @@ async function generateBookHTML(project: any, options: any): Promise<string> {
   // Generate table of contents
   const tocItems = generateTableOfContents(content);
   
-  const themeStyles = getThemeStyles(theme);
+  const themeStyles = getThemeStyles();
   const layoutStyles = columnLayout === 'double' ? 'columns: 2; column-gap: 2rem;' : '';
 
   return `
@@ -267,43 +267,47 @@ function generateTableOfContents(markdown: string) {
   return tocItems;
 }
 
-function getThemeStyles(theme: string): string {
-  const baseStyles = `
-    body { margin: 0; padding: 0; line-height: 1.6; color: #000; background: #fff; }
-    h1, h2, h3, h4, h5, h6 { margin: 1.5em 0 0.5em; font-weight: bold; }
-    p { margin: 0.75em 0; }
+function getThemeStyles(): string {
+  // Single default theme for clean, professional look
+  return `
+    body { 
+      margin: 0; 
+      padding: 0; 
+      line-height: 1.6; 
+      color: #000; 
+      background: #fff; 
+      font-family: 'Georgia', serif; 
+      font-size: 12pt; 
+    }
+    h1, h2, h3, h4, h5, h6 { 
+      margin: 1.5em 0 0.5em; 
+      font-weight: bold; 
+      color: #333;
+    }
+    h1 { font-size: 24pt; text-align: center; page-break-before: always; }
+    h2 { font-size: 18pt; margin-top: 2em; }
+    h3 { font-size: 16pt; }
+    h4 { font-size: 14pt; }
+    p { margin: 0.75em 0; text-align: justify; }
     ul, ol { margin: 0.75em 0; padding-left: 2em; }
+    .drop-cap {
+      float: left;
+      font-size: 48pt;
+      line-height: 40pt;
+      padding-right: 8pt;
+      margin-top: 4pt;
+      font-weight: bold;
+    }
   `;
-
-  switch (theme) {
-    case 'bible':
-      return baseStyles + `
-        body { font-family: 'Times New Roman', serif; font-size: 12pt; }
-        h1 { font-size: 18pt; text-align: center; }
-        h2 { font-size: 16pt; }
-        h3 { font-size: 14pt; }
-      `;
-    case 'science':
-      return baseStyles + `
-        body { font-family: 'Georgia', serif; font-size: 11pt; }
-        h1 { font-size: 16pt; border-bottom: 2px solid #000; }
-        h2 { font-size: 14pt; border-bottom: 1px solid #000; }
-        h3 { font-size: 12pt; font-style: italic; }
-      `;
-    default: // modern
-      return baseStyles + `
-        body { font-family: 'Inter', sans-serif; font-size: 11pt; }
-        h1 { font-size: 20pt; }
-        h2 { font-size: 16pt; }
-        h3 { font-size: 14pt; }
-      `;
-  }
 }
 
 async function generatePDFWithPDFKit(project: any, options: any): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ margin: 72 }); // 1 inch margins
+      const doc = new PDFDocument({ 
+        margin: 72, // 1 inch margins
+        size: 'A4'
+      });
       const buffers: Buffer[] = [];
       
       doc.on('data', buffers.push.bind(buffers));
@@ -312,22 +316,43 @@ async function generatePDFWithPDFKit(project: any, options: any): Promise<Buffer
         resolve(pdfData);
       });
 
-      const { content, theme, coverConfig } = project;
+      const { content, coverConfig } = project;
 
       // Add cover page if requested
-      if (options.includeCover && coverConfig) {
-        doc.fontSize(24).text(coverConfig.title || project.title, { align: 'center' });
-        if (coverConfig.subtitle) {
-          doc.moveDown().fontSize(18).text(coverConfig.subtitle, { align: 'center' });
+      if (options.includeCover) {
+        doc.fontSize(28).font('Helvetica-Bold').text(coverConfig?.title || project.title, { 
+          align: 'center',
+          valign: 'center'
+        });
+        if (coverConfig?.subtitle) {
+          doc.moveDown(2).fontSize(20).font('Helvetica').text(coverConfig.subtitle, { align: 'center' });
         }
-        if (coverConfig.author) {
-          doc.moveDown(3).fontSize(14).text(`by ${coverConfig.author}`, { align: 'center' });
+        if (coverConfig?.author) {
+          doc.moveDown(4).fontSize(16).font('Helvetica').text(`by ${coverConfig.author}`, { align: 'center' });
         }
+        doc.addPage();
+      }
+
+      // Add table of contents if requested
+      if (options.includeTOC) {
+        doc.fontSize(24).font('Helvetica-Bold').text('Table of Contents', { align: 'center' });
+        doc.moveDown(2);
+        
+        const tocItems = generateTableOfContents(content);
+        tocItems.forEach(item => {
+          const indent = (item.level - 1) * 20;
+          doc.fontSize(12).font('Helvetica').text(item.title, { 
+            indent: indent,
+            continued: false 
+          });
+          doc.moveDown(0.3);
+        });
         doc.addPage();
       }
 
       // Parse markdown content and add to PDF
       const lines = content.split('\n');
+      let afterHeading = false;
       
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -339,24 +364,53 @@ async function generatePDFWithPDFKit(project: any, options: any): Promise<Buffer
 
         // Handle headings
         if (line.startsWith('# ')) {
-          doc.fontSize(20).font('Helvetica-Bold').text(line.substring(2), { align: 'left' });
-          doc.moveDown();
+          if (i > 0) doc.addPage(); // New page for each chapter
+          doc.fontSize(24).font('Helvetica-Bold').text(line.substring(2), { align: 'center' });
+          doc.moveDown(2);
+          afterHeading = true;
         } else if (line.startsWith('## ')) {
-          doc.fontSize(16).font('Helvetica-Bold').text(line.substring(3), { align: 'left' });
-          doc.moveDown();
+          doc.moveDown(1).fontSize(18).font('Helvetica-Bold').text(line.substring(3), { align: 'left' });
+          doc.moveDown(1);
+          afterHeading = true;
         } else if (line.startsWith('### ')) {
-          doc.fontSize(14).font('Helvetica-Bold').text(line.substring(4), { align: 'left' });
-          doc.moveDown();
+          doc.moveDown(1).fontSize(16).font('Helvetica-Bold').text(line.substring(4), { align: 'left' });
+          doc.moveDown(0.5);
+          afterHeading = true;
         } else if (line.startsWith('#### ')) {
-          doc.fontSize(12).font('Helvetica-Bold').text(line.substring(5), { align: 'left' });
-          doc.moveDown();
+          doc.moveDown(1).fontSize(14).font('Helvetica-Bold').text(line.substring(5), { align: 'left' });
+          doc.moveDown(0.5);
+          afterHeading = true;
         } else if (line.startsWith('- ') || line.startsWith('* ')) {
           // Handle bullet points
           doc.fontSize(12).font('Helvetica').text(`• ${line.substring(2)}`, { indent: 20 });
+          doc.moveDown(0.3);
+          afterHeading = false;
         } else {
-          // Regular paragraph text
-          doc.fontSize(12).font('Helvetica').text(line, { align: 'justify' });
-          doc.moveDown(0.5);
+          // Regular paragraph text with drop cap after headings
+          if (afterHeading && line.length > 0) {
+            // Add drop cap for first paragraph after heading
+            const firstChar = line.charAt(0);
+            const restOfText = line.substring(1);
+            
+            // Draw the drop cap
+            doc.fontSize(48).font('Helvetica-Bold').text(firstChar, 72, doc.y, {
+              width: 36,
+              align: 'center'
+            });
+            
+            // Draw the rest of the paragraph with text wrapping around drop cap
+            doc.fontSize(12).font('Helvetica').text(restOfText, 108, doc.y - 36, {
+              width: doc.page.width - 180,
+              align: 'justify'
+            });
+            
+            doc.moveDown(1);
+            afterHeading = false;
+          } else {
+            // Regular paragraph
+            doc.fontSize(12).font('Helvetica').text(line, { align: 'justify' });
+            doc.moveDown(0.5);
+          }
         }
       }
 
