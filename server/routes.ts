@@ -6,7 +6,7 @@ import multer, { type FileFilterCallback } from "multer";
 import path from "path";
 import fs from "fs";
 import { marked } from "marked";
-import htmlPdf from 'html-pdf-node';
+import PDFDocument from 'pdfkit';
 
 interface MulterRequest extends Request {
   file?: any;
@@ -161,25 +161,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const htmlContent = await generateBookHTML(project, options);
 
       if (format === "pdf") {
-        // Generate PDF using html-pdf-node (simpler and more reliable)
-        const pdfOptions = {
-          format: pageSize.toUpperCase(),
-          width: '8.5in',
-          height: '11in',
-          printBackground: true,
-          margin: { 
-            top: '0.5in', 
-            right: '0.5in', 
-            bottom: '0.5in', 
-            left: '0.5in' 
-          }
-        };
-
-        const file = { content: htmlContent };
-        
+        // Generate PDF using PDFKit (no browser dependencies)
         try {
-          console.log('Generating PDF with html-pdf-node...');
-          const pdfBuffer = await htmlPdf.generatePdf(file, pdfOptions);
+          console.log('Generating PDF with PDFKit...');
+          const pdfBuffer = await generatePDFWithPDFKit(project, options);
           console.log('PDF generated successfully, buffer size:', pdfBuffer.length);
           
           res.setHeader('Content-Type', 'application/pdf');
@@ -313,4 +298,71 @@ function getThemeStyles(theme: string): string {
         h3 { font-size: 14pt; }
       `;
   }
+}
+
+async function generatePDFWithPDFKit(project: any, options: any): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 72 }); // 1 inch margins
+      const buffers: Buffer[] = [];
+      
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => {
+        const pdfData = Buffer.concat(buffers);
+        resolve(pdfData);
+      });
+
+      const { content, theme, coverConfig } = project;
+
+      // Add cover page if requested
+      if (options.includeCover && coverConfig) {
+        doc.fontSize(24).text(coverConfig.title || project.title, { align: 'center' });
+        if (coverConfig.subtitle) {
+          doc.moveDown().fontSize(18).text(coverConfig.subtitle, { align: 'center' });
+        }
+        if (coverConfig.author) {
+          doc.moveDown(3).fontSize(14).text(`by ${coverConfig.author}`, { align: 'center' });
+        }
+        doc.addPage();
+      }
+
+      // Parse markdown content and add to PDF
+      const lines = content.split('\n');
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        if (line === '') {
+          doc.moveDown(0.5);
+          continue;
+        }
+
+        // Handle headings
+        if (line.startsWith('# ')) {
+          doc.fontSize(20).font('Helvetica-Bold').text(line.substring(2), { align: 'left' });
+          doc.moveDown();
+        } else if (line.startsWith('## ')) {
+          doc.fontSize(16).font('Helvetica-Bold').text(line.substring(3), { align: 'left' });
+          doc.moveDown();
+        } else if (line.startsWith('### ')) {
+          doc.fontSize(14).font('Helvetica-Bold').text(line.substring(4), { align: 'left' });
+          doc.moveDown();
+        } else if (line.startsWith('#### ')) {
+          doc.fontSize(12).font('Helvetica-Bold').text(line.substring(5), { align: 'left' });
+          doc.moveDown();
+        } else if (line.startsWith('- ') || line.startsWith('* ')) {
+          // Handle bullet points
+          doc.fontSize(12).font('Helvetica').text(`• ${line.substring(2)}`, { indent: 20 });
+        } else {
+          // Regular paragraph text
+          doc.fontSize(12).font('Helvetica').text(line, { align: 'justify' });
+          doc.moveDown(0.5);
+        }
+      }
+
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
