@@ -1,0 +1,181 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0 0% 100%);
+  --foreground: hsl(0 0% 0%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(0 0% 0%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(0 0% 0%);
+  --primary: hsl(0 0% 0%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(0 0% 96%);
+  --secondary-foreground: hsl(0 0% 9%);
+  --muted: hsl(0 0% 96%);
+  --muted-foreground: hsl(0 0% 45%);
+  --accent: hsl(0 0% 96%);
+  --accent-foreground: hsl(0 0% 9%);
+  --destructive: hsl(0 85% 60%);
+  --destructive-foreground: hsl(0 0% 98%);
+  --border: hsl(0 0% 90%);
+  --input: hsl(0 0% 90%);
+  --ring: hsl(0 0% 0%);
+  --radius: 6px;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Times New Roman', serif;
+  --font-mono: 'Menlo', monospace;
+}
+
+.dark {
+  --background: hsl(0 0% 0%);
+  --foreground: hsl(0 0% 100%);
+  --card: hsl(0 0% 5%);
+  --card-foreground: hsl(0 0% 100%);
+  --popover: hsl(0 0% 0%);
+  --popover-foreground: hsl(0 0% 100%);
+  --primary: hsl(0 0% 100%);
+  --primary-foreground: hsl(0 0% 0%);
+  --secondary: hsl(0 0% 10%);
+  --secondary-foreground: hsl(0 0% 96%);
+  --muted: hsl(0 0% 10%);
+  --muted-foreground: hsl(0 0% 60%);
+  --accent: hsl(0 0% 10%);
+  --accent-foreground: hsl(0 0% 96%);
+  --border: hsl(0 0% 20%);
+  --input: hsl(0 0% 20%);
+  --ring: hsl(0 0% 100%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+/* Theme-specific styles for book preview */
+.theme-modern {
+  font-family: var(--font-sans);
+}
+
+.theme-bible {
+  font-family: var(--font-serif);
+}
+
+.theme-science {
+  font-family: var(--font-serif);
+}
+
+.theme-science h1 {
+  border-bottom: 2px solid currentColor;
+  padding-bottom: 0.5rem;
+}
+
+.theme-science h2 {
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 0.25rem;
+}
+
+/* Editor styles */
+.markdown-content h1 { 
+  font-size: 2rem; 
+  font-weight: 700; 
+  margin: 1.5rem 0 1rem; 
+}
+
+.markdown-content h2 { 
+  font-size: 1.5rem; 
+  font-weight: 600; 
+  margin: 1.25rem 0 0.75rem; 
+}
+
+.markdown-content h3 { 
+  font-size: 1.25rem; 
+  font-weight: 600; 
+  margin: 1rem 0 0.5rem; 
+}
+
+.markdown-content p { 
+  margin: 0.75rem 0; 
+  line-height: 1.6; 
+}
+
+.markdown-content ul { 
+  margin: 0.75rem 0; 
+  padding-left: 1.5rem; 
+}
+
+.markdown-content li { 
+  margin: 0.25rem 0; 
+}
+
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.markdown-content th,
+.markdown-content td {
+  border: 1px solid var(--border);
+  padding: 0.5rem;
+  text-align: left;
+}
+
+.markdown-content th {
+  background-color: var(--muted);
+  font-weight: 600;
+}
+
+.markdown-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  margin: 1rem 0;
+}
+
+/* Resizer styles */
+.resizer {
+  width: 4px;
+  background: var(--border);
+  cursor: col-resize;
+  transition: background 0.2s;
+}
+
+.resizer:hover {
+  background: var(--muted-foreground);
+}
+
+/* Book preview effect */
+.book-preview {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  transform: perspective(1000px) rotateY(-2deg);
+}
+
+/* Editor toolbar */
+.editor-toolbar {
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
+}
+
+/* Column layout for double column */
+.double-column {
+  columns: 2;
+  column-gap: 2rem;
+  column-rule: 1px solid var(--border);
+}
+
+/* Monaco Editor overrides */
+.monaco-editor {
+  background-color: var(--background) !important;
+}
+
+.monaco-editor .margin {
+  background-color: var(--muted) !important;
+}
