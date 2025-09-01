@@ -1,7 +1,7 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertProjectSchema, insertImageSchema } from "@shared/schema";
+import { insertBookSchema, insertChapterSchema, insertImageSchema, exportSettingsSchema } from "@shared/schema";
 import multer, { type FileFilterCallback } from "multer";
 import path from "path";
 import fs from "fs";
@@ -49,69 +49,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
     require('express').static(uploadsPath)(req, res, next);
   });
 
-  // Project routes
-  app.get("/api/projects", async (req, res) => {
+  // Book routes
+  app.get("/api/books", async (req, res) => {
     try {
-      const projects = await storage.listProjects();
-      res.json(projects);
+      const books = await storage.listBooks();
+      res.json(books);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch projects" });
+      res.status(500).json({ message: "Failed to fetch books" });
     }
   });
 
-  app.get("/api/projects/:id", async (req, res) => {
+  app.get("/api/books/:id", async (req, res) => {
     try {
-      const project = await storage.getProject(req.params.id);
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
+      const bookId = parseInt(req.params.id);
+      const book = await storage.getBook(bookId);
+      if (!book) {
+        return res.status(404).json({ message: "Book not found" });
       }
-      res.json(project);
+      res.json(book);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch project" });
+      res.status(500).json({ message: "Failed to fetch book" });
     }
   });
 
-  app.post("/api/projects", async (req, res) => {
+  app.post("/api/books", async (req, res) => {
     try {
-      const data = insertProjectSchema.parse(req.body);
-      const project = await storage.createProject(data);
-      res.status(201).json(project);
+      const data = insertBookSchema.parse({
+        ...req.body,
+        filename: storage.generateFilename(req.body.title)
+      });
+      const book = await storage.createBook(data);
+      res.status(201).json(book);
     } catch (error) {
-      res.status(400).json({ message: "Invalid project data" });
+      res.status(400).json({ message: "Invalid book data" });
     }
   });
 
-  app.patch("/api/projects/:id", async (req, res) => {
+  app.patch("/api/books/:id", async (req, res) => {
     try {
-      const updates = insertProjectSchema.partial().parse(req.body);
-      const project = await storage.updateProject(req.params.id, updates);
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
+      const bookId = parseInt(req.params.id);
+      const updates = insertBookSchema.partial().parse(req.body);
+      const book = await storage.updateBook(bookId, updates);
+      if (!book) {
+        return res.status(404).json({ message: "Book not found" });
       }
-      res.json(project);
+      res.json(book);
     } catch (error) {
       res.status(400).json({ message: "Invalid update data" });
     }
   });
 
-  // Image routes
-  app.get("/api/projects/:id/images", async (req, res) => {
+  app.delete("/api/books/:id", async (req, res) => {
     try {
-      const images = await storage.getProjectImages(req.params.id);
+      const bookId = parseInt(req.params.id);
+      const success = await storage.deleteBook(bookId);
+      if (!success) {
+        return res.status(404).json({ message: "Book not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete book" });
+    }
+  });
+
+  // Chapter routes
+  app.get("/api/books/:bookId/chapters", async (req, res) => {
+    try {
+      const bookId = parseInt(req.params.bookId);
+      const chapters = await storage.getBookChapters(bookId);
+      res.json(chapters);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch chapters" });
+    }
+  });
+
+  app.get("/api/chapters/:id", async (req, res) => {
+    try {
+      const chapterId = parseInt(req.params.id);
+      const chapter = await storage.getChapter(chapterId);
+      if (!chapter) {
+        return res.status(404).json({ message: "Chapter not found" });
+      }
+      res.json(chapter);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch chapter" });
+    }
+  });
+
+  app.post("/api/books/:bookId/chapters", async (req, res) => {
+    try {
+      const bookId = parseInt(req.params.bookId);
+      const data = insertChapterSchema.parse({
+        ...req.body,
+        bookId
+      });
+      const chapter = await storage.createChapter(data);
+      res.status(201).json(chapter);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid chapter data" });
+    }
+  });
+
+  app.patch("/api/chapters/:id", async (req, res) => {
+    try {
+      const chapterId = parseInt(req.params.id);
+      const updates = insertChapterSchema.partial().parse(req.body);
+      const chapter = await storage.updateChapter(chapterId, updates);
+      if (!chapter) {
+        return res.status(404).json({ message: "Chapter not found" });
+      }
+      res.json(chapter);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid chapter update data" });
+    }
+  });
+
+  app.delete("/api/chapters/:id", async (req, res) => {
+    try {
+      const chapterId = parseInt(req.params.id);
+      const success = await storage.deleteChapter(chapterId);
+      if (!success) {
+        return res.status(404).json({ message: "Chapter not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete chapter" });
+    }
+  });
+
+  // Image routes
+  app.get("/api/books/:id/images", async (req, res) => {
+    try {
+      const bookId = parseInt(req.params.id);
+      const images = await storage.getBookImages(bookId);
       res.json(images);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch images" });
     }
   });
 
-  app.post("/api/projects/:id/images", upload.single('image'), async (req: MulterRequest, res) => {
+  app.post("/api/books/:id/images", upload.single('image'), async (req: MulterRequest, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No image file provided" });
       }
 
       const imageData = {
-        projectId: req.params.id,
+        bookId: parseInt(req.params.id),
         filename: req.file.filename,
         originalName: req.file.originalname,
         size: req.file.size.toString(),
@@ -128,7 +212,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/images/:id", async (req, res) => {
     try {
-      const image = await storage.getImage(req.params.id);
+      const imageId = parseInt(req.params.id);
+      const image = await storage.getImage(imageId);
       if (!image) {
         return res.status(404).json({ message: "Image not found" });
       }
@@ -139,7 +224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fs.unlinkSync(filePath);
       }
 
-      const deleted = await storage.deleteImage(req.params.id);
+      const deleted = await storage.deleteImage(imageId);
       if (deleted) {
         res.json({ message: "Image deleted successfully" });
       } else {
@@ -151,39 +236,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PDF Export route
-  app.post("/api/projects/:id/export", async (req, res) => {
+  app.post("/api/books/:id/export", async (req, res) => {
     try {
-      const project = await storage.getProject(req.params.id);
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
+      const bookId = parseInt(req.params.id);
+      const book = await storage.getBook(bookId);
+      if (!book) {
+        return res.status(404).json({ message: "Book not found" });
       }
 
-      const { format = "pdf", pageSize = "a4", options = {} } = req.body;
+      const chapters = await storage.getBookChapters(bookId);
 
-      // Generate HTML content
-      const htmlContent = await generateBookHTML(project, options);
+      // Use book's export settings or defaults
+      const exportSettings = book.exportSettings || {
+        pdfEngine: "pdflatex" as const,
+        headerPath: "server/latex-header.tex",
+        includeTOC: true,
+        includeCover: true,
+      };
 
-      if (format === "pdf") {
-        // Generate PDF using Pandoc (professional and simple)
-        try {
-          console.log('Generating PDF with Pandoc...');
-          const pdfBuffer = await generatePDFWithPandoc(project, options);
-          console.log('PDF generated successfully, buffer size:', pdfBuffer.length);
-          
-          res.setHeader('Content-Type', 'application/pdf');
-          res.setHeader('Content-Disposition', `attachment; filename="${project.title}.pdf"`);
-          res.send(pdfBuffer);
-        } catch (pdfError) {
-          console.error('PDF generation error:', pdfError);
-          res.status(500).json({ message: "Failed to generate PDF" });
-        }
-        return;
+      // Allow override from request
+      const finalSettings = {
+        ...exportSettings,
+        ...req.body.exportSettings
+      };
+
+      try {
+        console.log('Generating PDF with Pandoc...');
+        
+        // Save book content to file first
+        const filePath = await storage.saveBookToFile(book, chapters);
+        
+        // Generate PDF using Pandoc
+        const pdfBuffer = await generatePDFWithPandoc(filePath, finalSettings);
+        console.log('PDF generated successfully, buffer size:', pdfBuffer.length);
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${book.filename}.pdf"`);
+        res.send(pdfBuffer);
+      } catch (pdfError) {
+        console.error('PDF generation error:', pdfError);
+        res.status(500).json({ message: "Failed to generate PDF" });
       }
-      
-      // HTML export
-      res.setHeader('Content-Type', 'text/html');
-      res.setHeader('Content-Disposition', `attachment; filename="${project.title}.html"`);
-      res.send(htmlContent);
     } catch (error) {
       console.error('Export error:', error);
       res.status(500).json({ message: "Failed to export book" });
@@ -304,87 +397,31 @@ function getThemeStyles(): string {
   `;
 }
 
-async function generatePDFWithPandoc(project: any, options: any): Promise<Buffer> {
-  const { content, coverConfig } = project;
-  
-  // Create clean markdown content
-  let markdownContent = '';
-  
-  // Add title page if cover is requested
-  if (options.includeCover) {
-    markdownContent += `# ${coverConfig?.title || project.title}\n\n`;
-    if (coverConfig?.subtitle) {
-      markdownContent += `## ${coverConfig.subtitle}\n\n`;
-    }
-    if (coverConfig?.author) {
-      markdownContent += `**${coverConfig.author}**\n\n`;
-    }
-    markdownContent += '\n\\newpage\n\n';
-  }
-
-  // Add table of contents if requested
-  if (options.includeTOC) {
-    markdownContent += '\\customtoc\n\n';
-  }
-  
-  // Process content to add drop caps after headings
-  const lines = content.split('\n');
-  let afterHeading = false;
-  
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    
-    if (line.startsWith('# ')) {
-      if (i > 0) markdownContent += '\n\\newpage\n\n';
-      markdownContent += `${line}\n\n`;
-      afterHeading = true;
-    } else if (line.startsWith('#')) {
-      markdownContent += `${line}\n\n`;
-      afterHeading = true;
-    } else if (line === '') {
-      markdownContent += '\n';
-    } else {
-      // Add drop cap for first paragraph after heading
-      if (afterHeading && line.length > 0 && !line.startsWith('-') && !line.startsWith('*')) {
-        const firstChar = line.charAt(0);
-        const restOfText = line.substring(1);
-        markdownContent += `\\dropcap{${firstChar}}${line.substring(1)}\n\n`;
-        afterHeading = false;
-      } else {
-        markdownContent += `${line}\n\n`;
-        if (!line.startsWith('-') && !line.startsWith('*')) {
-          afterHeading = false;
-        }
-      }
-    }
-  }
-  
-  // Write markdown to temporary file
+async function generatePDFWithPandoc(markdownFilePath: string, exportSettings: any): Promise<Buffer> {
+  // Generate temporary PDF output file
   const tempDir = '/tmp';
-  const markdownFile = path.join(tempDir, `book-${Date.now()}.md`);
   const pdfFile = path.join(tempDir, `book-${Date.now()}.pdf`);
-  const headerFile = path.join(process.cwd(), 'server', 'latex-header.tex');
+  
+  // Use the export settings to determine PDF engine and header path
+  const pdfEngine = exportSettings.pdfEngine || 'pdflatex';
+  const headerPath = path.join(process.cwd(), exportSettings.headerPath || 'server/latex-header.tex');
   
   try {
-    fs.writeFileSync(markdownFile, markdownContent);
-    
-    // Convert markdown to PDF using pandoc with your LaTeX header
-    const pandocCmd = `pandoc "${markdownFile}" -H "${headerFile}" -o "${pdfFile}" --pdf-engine=pdflatex`;
+    // Convert markdown to PDF using pandoc with LaTeX header
+    const pandocCmd = `pandoc "${markdownFilePath}" -H "${headerPath}" -o "${pdfFile}" --pdf-engine=${pdfEngine}`;
     
     await execAsync(pandocCmd);
     
     // Read the generated PDF
     const pdfBuffer = fs.readFileSync(pdfFile);
     
-    // Clean up temporary files
-    fs.unlinkSync(markdownFile);
+    // Clean up temporary PDF file
     fs.unlinkSync(pdfFile);
     
     return pdfBuffer;
   } catch (error) {
-    // Clean up files if they exist
+    // Clean up PDF file if it exists
     try {
-      if (fs.existsSync(markdownFile)) fs.unlinkSync(markdownFile);
       if (fs.existsSync(pdfFile)) fs.unlinkSync(pdfFile);
     } catch (cleanupError) {
       // Ignore cleanup errors
