@@ -6,7 +6,7 @@ import multer, { type FileFilterCallback } from "multer";
 import path from "path";
 import fs from "fs";
 import { marked } from "marked";
-import puppeteer from "puppeteer";
+import htmlPdf from 'html-pdf-node';
 
 interface MulterRequest extends Request {
   file?: any;
@@ -161,51 +161,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const htmlContent = await generateBookHTML(project, options);
 
       if (format === "pdf") {
-        // Generate actual PDF using Puppeteer
-        const browser = await puppeteer.launch({
-          headless: true,
-          executablePath: '/nix/store/qa9cnw4v5xkxyip6mb9kxqfq1z4x2dx1-chromium-138.0.7204.100/bin/chromium',
-          args: [
-            '--no-sandbox', 
-            '--disable-setuid-sandbox', 
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--disable-web-security',
-            '--disable-features=VizDisplayCompositor'
-          ]
-        });
+        // Generate PDF using html-pdf-node (simpler and more reliable)
+        const pdfOptions = {
+          format: pageSize.toUpperCase(),
+          width: '8.5in',
+          height: '11in',
+          printBackground: true,
+          margin: { 
+            top: '0.5in', 
+            right: '0.5in', 
+            bottom: '0.5in', 
+            left: '0.5in' 
+          }
+        };
+
+        const file = { content: htmlContent };
         
         try {
-          const page = await browser.newPage();
-          
-          // Set viewport for consistent rendering
-          await page.setViewport({ width: 1200, height: 800 });
-          
-          // Load HTML content with a timeout
-          await page.setContent(htmlContent, { 
-            waitUntil: ['domcontentloaded', 'networkidle0'], 
-            timeout: 30000 
-          });
-          
-          // Wait a bit more for any fonts/styles to load
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          const pdfOptions: any = {
-            format: pageSize.toUpperCase(),
-            printBackground: true,
-            margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' },
-            preferCSSPageSize: false
-          };
-          
-          console.log('Generating PDF with options:', pdfOptions);
-          const pdfBuffer = await page.pdf(pdfOptions);
-          console.log('PDF generated, buffer size:', pdfBuffer.length);
+          console.log('Generating PDF with html-pdf-node...');
+          const pdfBuffer = await htmlPdf.generatePdf(file, pdfOptions);
+          console.log('PDF generated successfully, buffer size:', pdfBuffer.length);
           
           res.setHeader('Content-Type', 'application/pdf');
           res.setHeader('Content-Disposition', `attachment; filename="${project.title}.pdf"`);
           res.send(pdfBuffer);
-        } finally {
-          await browser.close();
+        } catch (pdfError) {
+          console.error('PDF generation error:', pdfError);
+          res.status(500).json({ message: "Failed to generate PDF" });
         }
         return;
       }
