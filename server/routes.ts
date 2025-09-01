@@ -177,15 +177,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         try {
           const page = await browser.newPage();
-          await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+          
+          // Set viewport for consistent rendering
+          await page.setViewport({ width: 1200, height: 800 });
+          
+          // Load HTML content with a timeout
+          await page.setContent(htmlContent, { 
+            waitUntil: ['domcontentloaded', 'networkidle0'], 
+            timeout: 30000 
+          });
+          
+          // Wait a bit more for any fonts/styles to load
+          await new Promise(resolve => setTimeout(resolve, 1000));
           
           const pdfOptions: any = {
             format: pageSize.toUpperCase(),
             printBackground: true,
-            margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' }
+            margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' },
+            preferCSSPageSize: false
           };
           
+          console.log('Generating PDF with options:', pdfOptions);
           const pdfBuffer = await page.pdf(pdfOptions);
+          console.log('PDF generated, buffer size:', pdfBuffer.length);
           
           res.setHeader('Content-Type', 'application/pdf');
           res.setHeader('Content-Disposition', `attachment; filename="${project.title}.pdf"`);
